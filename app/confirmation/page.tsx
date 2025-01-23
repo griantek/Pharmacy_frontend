@@ -18,7 +18,6 @@ interface OrderDetails {
   total_price: number;
   status: string;
   created_at: string;
-  prescription_photo?: string;
 }
 
 export default function ConfirmationPage() {
@@ -118,17 +117,6 @@ export default function ConfirmationPage() {
                 Total Amount: ${order.total_price.toFixed(2)}
               </p>
             </div>
-
-            {order.prescription_photo && (
-              <div>
-                <p className="text-sm text-gray-500 mb-2">Prescription</p>
-                <img 
-                  src={`${API_URLS.BACKEND_URL}/${order.prescription_photo}`} 
-                  alt="Prescription"
-                  className="w-full rounded-lg"
-                />
-              </div>
-            )}
           </div>
 
           <div className="flex gap-2">
