@@ -4,14 +4,25 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { Card, CardBody, Button, Skeleton, Chip } from "@nextui-org/react";
-import { CheckCircle, Package } from "lucide-react";
 import { API_URLS } from "@/utils/constants";
+import { 
+  User, 
+  MapPin, 
+  Phone, 
+  Pill, 
+  Calendar, 
+  DollarSign, 
+  MessageCircle,
+  Printer, 
+  Package 
+} from "lucide-react";
 
 interface OrderDetails {
   id: number;
   user_name: string;
   user_address: string;
   phone_number: string;
+  medicine_id: number;
   medicine_name: string;
   medicine_price: number;
   quantity: number;
@@ -77,64 +88,106 @@ export default function ConfirmationPage() {
     });
   };
 
+
   return (
     <div className="max-w-md mx-auto p-4">
-      <Card>
-        <CardBody className="space-y-6">
-          <div className="flex items-center justify-center">
-            <Package className="w-8 h-8 text-primary mr-2" />
-            <h1 className="text-xl font-semibold">Order #{order.id}</h1>
-          </div>
-
-          <Chip 
-            color={order.status === 'Pending' ? 'warning' : 'success'}
-            className="mx-auto"
-          >
-            {order.status.toUpperCase()}
-          </Chip>
-
-          <div className="rounded-lg space-y-4 p-4 bg-gray-50">
+      <Card className="bg-content1 border-none">
+        <CardBody className="gap-5">
+          {/* Header Section */}
+          <div className="flex items-center justify-center p-5 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl">
+            <Package className="w-12 h-12 text-primary mr-4" />
             <div>
-              <p className="text-sm text-gray-500">Customer Details</p>
-              <p className="font-medium">{order.user_name}</p>
-              <p className="text-sm">{order.user_address}</p>
-              <p className="text-sm">{order.phone_number}</p>
+              <h1 className="text-3xl font-bold text-primary">#{order.id}</h1>
+              <p className="text-default-500">Order Confirmation</p>
             </div>
-            
-            <div>
-              <p className="text-sm text-gray-500">Medicine Details</p>
-              <p className="font-medium">{order.medicine_name}</p>
-              <div className="flex justify-between text-sm">
-                <span>Quantity: {order.quantity} units</span>
-                <span>Price per unit: ${order.medicine_price}</span>
+          </div>
+  
+          {/* Status Badge */}
+          <div className="flex justify-center">
+            <Chip
+              color={order.status === 'Pending' ? 'warning' : 'success'}
+              variant="shadow"
+              className="px-4 py-2"
+              size="lg"
+            >
+              {order.status.toUpperCase()}
+            </Chip>
+          </div>
+  
+          {/* Details Sections */}
+          <div className="space-y-6 bg-content2 rounded-xl p-6">
+            {/* Customer Section */}
+            <div className="border-b border-divider pb-4">
+              <div className="flex items-center mb-3">
+                <User className="w-5 h-5 text-primary mr-2" />
+                <h2 className="text-default-900 font-semibold">Customer Details</h2>
+              </div>
+              <div className="space-y-2 pl-7">
+                <p className="text-xl font-semibold text-default-900">{order.user_name}</p>
+                <div className="flex items-center text-default-500">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  <p>{order.user_address}</p>
+                </div>
+                <div className="flex items-center text-default-500">
+                  <Phone className="w-4 h-4 mr-2" />
+                  <p>{order.phone_number}</p>
+                </div>
               </div>
             </div>
-
+  
+            {/* Medicine Section */}
+            <div className="border-b border-divider pb-4">
+              <div className="flex items-center mb-3">
+                <Pill className="w-5 h-5 text-primary mr-2" />
+                <h2 className="text-default-900 font-semibold">Medicine Details</h2>
+              </div>
+              <div className="pl-7 space-y-3">
+                <p className="text-xl font-semibold text-default-900">{order.medicine_name}</p>
+                <div className="flex justify-between text-default-500">
+                  <span>Quantity: {order.quantity} units</span>
+                  <span>Price: ${order.medicine_price} per unit</span>
+                </div>
+              </div>
+            </div>
+  
+            {/* Order Info Section */}
             <div>
-              <p className="text-sm text-gray-500">Order Info</p>
-              <p className="text-sm">Placed on: {formatDateTime(order.created_at)}</p>
-              <p className="font-medium text-lg mt-2">
-                Total Amount: ${order.total_price.toFixed(2)}
-              </p>
+              <div className="flex items-center mb-3">
+                <Calendar className="w-5 h-5 text-primary mr-2" />
+                <h2 className="text-default-900 font-semibold">Order Information</h2>
+              </div>
+              <div className="pl-7 space-y-3">
+                <p className="text-default-500">
+                  Placed on: {formatDateTime(order.created_at)}
+                </p>
+                <p className="text-2xl font-bold text-success">
+                  Total: ${order.total_price.toFixed(2)}
+                </p>
+              </div>
             </div>
           </div>
-
-          <div className="flex gap-2">
+  
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-2">
             <Button
-              color="primary"
+              color="success"
+              size="lg"
               className="flex-1"
+              startContent={<MessageCircle className="w-5 h-5" />}
               onClick={() => window.location.href = `https://wa.me/${order.phone_number.replace(/[^0-9]/g, '')}`}
             >
-              Contact via WhatsApp
+              WhatsApp
             </Button>
             {order.status === 'Pending' && (
               <Button
-                color="danger"
+                color="primary"
                 variant="flat"
+                size="lg"
                 className="flex-1"
+                startContent={<Printer className="w-5 h-5" />}
                 onClick={() => window.print()}
               >
-                Print Order
+                Print
               </Button>
             )}
           </div>
@@ -142,4 +195,5 @@ export default function ConfirmationPage() {
       </Card>
     </div>
   );
+
 }

@@ -23,11 +23,11 @@ export const siteConfig = {
     },
     {
       label: "Orders",
-      href: "/admin/bookings",
+      href: "/admin/orders",
     },
     {
-      label: "Rooms",
-      href: "/admin/rooms",
+      label: "Medicines",
+      href: "/admin/medicines",
     },
     {
       label: "Users",
