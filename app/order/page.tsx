@@ -27,7 +27,14 @@ export default function OrderPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [errors, setErrors] = useState<{ [key in keyof FormData]?: string }>({});
+  const [errors, setErrors] = useState<{ [key in keyof FormData]?: string }>({
+    user_name: undefined,
+    user_address: undefined,
+    phone_number: undefined,
+    medicine_id: undefined as string | undefined,
+    quantity: undefined,
+    prescription: undefined
+  });
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [formData, setFormData] = useState<FormData>({
     user_name: '',
@@ -63,7 +70,7 @@ export default function OrderPage() {
   };
 
   const validateForm = () => {
-    const newErrors: Partial<FormData> = {};
+    const newErrors: { [key in keyof FormData]?: string } = {};
 
     if (!formData.user_name) newErrors.user_name = "User name is required";
     if (!formData.user_address) newErrors.user_address = "User address is required";

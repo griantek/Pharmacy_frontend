@@ -28,6 +28,7 @@ interface Medicine {
   description: string;
   price: number;
   stock: number;
+  category_id: number;
 }
 
 interface OrderResponse {
@@ -39,6 +40,11 @@ interface OrderResponse {
   quantity: number;
   status: string;
   prescription_photo: string | null;
+}
+interface FormErrors {
+  medicine_id: string;
+  quantity: string;
+  prescription: string;
 }
 
 export default function ModifyOrder() {
@@ -54,10 +60,15 @@ export default function ModifyOrder() {
     quantity: 1,
     prescription: null
   });
-  const [errors, setErrors] = useState<Partial<FormData>>({});
+  const [errors, setErrors] = useState<FormErrors>({
+    medicine_id: '',
+    quantity: '',
+    prescription: ''
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [orderStatus, setOrderStatus] = useState<string>('');
+  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
 
   useEffect(() => {
     const fetchMedicines = async () => {
@@ -104,28 +115,52 @@ export default function ModifyOrder() {
     }
   }, [orderId, router]);
 
-  const handleInputChange = (field: keyof FormData, value: string | number | File | null) => {
+  const handleInputChange = (field: string, value: string) => {
+    if (field === 'medicine_id') {
+      const medicine = medicines.find(m => m.id === parseInt(value));
+      setSelectedMedicine(medicine || null);
+    }
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
     setErrors(prev => ({
       ...prev,
-      [field]: undefined
+      [field]: ''
     }));
   };
 
+  const handlePrescriptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData(prev => ({
+        ...prev,
+        prescription: e.target.files![0]
+      }));
+    }
+  };
+
   const validateForm = () => {
-    const newErrors: Partial<FormData> = {};
-
-    if (!formData.user_name) newErrors.user_name = "User name is required";
-    if (!formData.user_address) newErrors.user_address = "User address is required";
-    if (!formData.phone_number) newErrors.phone_number = "Phone number is required";
-    if (!formData.medicine_id) newErrors.medicine_id = "Medicine is required";
-    if (formData.quantity <= 0) newErrors.quantity = "Quantity must be greater than 0";
-
+    const newErrors: FormErrors = {
+      medicine_id: '',
+      quantity: '',
+      prescription: ''
+    };
+  
+    if (!formData.medicine_id) {
+      newErrors.medicine_id = 'Please select a medicine';
+    }
+  
+    if (!formData.quantity || formData.quantity <= 0) {
+      newErrors.quantity = 'Please enter a valid quantity';
+    }
+  
+    // Only validate prescription if medicine category requires it
+    if (selectedMedicine?.category_id === 2 && !formData.prescription) {
+      newErrors.prescription = 'Prescription is required for this medicine';
+    }
+  
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.values(newErrors).every(error => error === '');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -186,35 +221,39 @@ export default function ModifyOrder() {
               isRequired
             />
 
-            <Select
-              label="Medicine"
-              placeholder="Select medicine"
-              value={formData.medicine_id.toString()}
-              onChange={(e) => handleInputChange("medicine_id", parseInt(e.target.value))}
-              errorMessage={errors.medicine_id}
-              isRequired
-            >
-              {medicines.map((medicine) => (
-                <SelectItem key={medicine.id} value={medicine.id.toString()}>
-                  {medicine.name}
-                </SelectItem>
-              ))}
-            </Select>
+          <Select
+                label="Select Medicine"
+                value={formData.medicine_id.toString()}
+                onChange={(e) => handleInputChange('medicine_id', e.target.value)}
+                errorMessage={errors.medicine_id}
+                isInvalid={!!errors.medicine_id}
+              >
+                {medicines.map((medicine) => (
+                  <SelectItem key={medicine.id} value={medicine.id.toString()}>
+                    {medicine.name}
+                  </SelectItem>
+                ))}
+              </Select>
 
-            <Input
-              type="number"
-              label="Quantity"
-              min="1"
-              value={formData.quantity.toString()}
-              onChange={(e) => handleInputChange("quantity", parseInt(e.target.value))}
-              required
-            />
+              <Input
+                type="number"
+                label="Quantity"
+                value={formData.quantity.toString()}
+                onChange={(e) => handleInputChange('quantity', e.target.value)}
+                errorMessage={errors.quantity}
+                isInvalid={!!errors.quantity}
+              />
 
-            <Input
-              type="file"
-              label="Prescription (Optional)"
-              onChange={(e) => handleInputChange("prescription", e.target.files ? e.target.files[0] : null)}
-            />
+              {selectedMedicine?.category_id === 2 && (
+                  <Input
+                    type="file"
+                    label="Prescription (Required)"
+                    onChange={handlePrescriptionChange}
+                    errorMessage={errors.prescription}
+                    isInvalid={!!errors.prescription}
+                    accept="image/*"
+                  />
+                )}
 
             <Button
               type="submit"
