@@ -20,16 +20,17 @@ import {
 import { API_URLS } from "@/utils/constants";
 
 interface DeliveryOrder {
-  id: number;
-  user_name: string;
-  user_address: string;
-  phone_number: string;
-  medicine_name: string;
-  quantity: number;
-  total_price: number;
-  status: string;
-  created_at: string;
-}
+    id: number;
+    user_name: string;
+    user_address: string;
+    phone_number: string;
+    medicine_name: string;
+    quantity: number;
+    total_price: number;
+    status: string;
+    payment_status: 'pending' | 'paid';
+    created_at: string;
+  }
 
 export default function DeliveryOrdersPage() {
   const router = useRouter();
@@ -61,6 +62,20 @@ export default function DeliveryOrdersPage() {
     }
   };
 
+  const handlePaymentUpdate = async (orderId: number, payment_status: string) => {
+    try {
+      const token = localStorage.getItem('deliveryToken');
+      await axios.put(
+        `${API_URLS.BACKEND_URL}/delivery/orders/${orderId}/payment`,
+        { payment_status },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchOrders();
+    } catch (err) {
+      setError('Failed to update payment status');
+    }
+  };
+
   const handleStatusUpdate = async (orderId: number, status: string) => {
     try {
       const token = localStorage.getItem('deliveryToken');
@@ -89,7 +104,9 @@ export default function DeliveryOrdersPage() {
               <TableColumn>CUSTOMER</TableColumn>
               <TableColumn>ADDRESS</TableColumn>
               <TableColumn>MEDICINE</TableColumn>
+              <TableColumn>TOTAL</TableColumn>
               <TableColumn>STATUS</TableColumn>
+              <TableColumn>PAYMENT</TableColumn>
               <TableColumn>ACTIONS</TableColumn>
             </TableHeader>
             <TableBody>
@@ -108,6 +125,9 @@ export default function DeliveryOrdersPage() {
                       <p>{order.medicine_name}</p>
                       <p className="text-small text-default-500">Qty: {order.quantity}</p>
                     </div>
+                    </TableCell>
+                  <TableCell>
+                    <p className="font-semibold">${order.total_price.toFixed(2)}</p>
                   </TableCell>
                   <TableCell>
                     <Chip
@@ -118,13 +138,30 @@ export default function DeliveryOrdersPage() {
                     </Chip>
                   </TableCell>
                   <TableCell>
+                    <Chip
+                      color={order.payment_status === 'paid' ? 'success' : 'warning'}
+                      size="sm"
+                      className="cursor-pointer"
+                      onClick={() => handlePaymentUpdate(
+                        order.id, 
+                        order.payment_status === 'paid' ? 'pending' : 'paid'
+                      )}
+                    >
+                      {order.payment_status.toUpperCase()}
+                    </Chip>
+                  </TableCell>
+                  <TableCell>
                     {order.status !== 'delivered' && (
                       <Select
                         size="sm"
                         onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
                       >
-                        <SelectItem key="dispatched" value="dispatched">Mark Dispatched</SelectItem>
-                        <SelectItem key="delivered" value="delivered">Mark Delivered</SelectItem>
+                        <SelectItem key="dispatched" value="dispatched">
+                          Mark Dispatched
+                        </SelectItem>
+                        <SelectItem key="delivered" value="delivered">
+                          Mark Delivered
+                        </SelectItem>
                       </Select>
                     )}
                   </TableCell>
