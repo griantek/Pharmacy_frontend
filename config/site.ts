@@ -30,8 +30,8 @@ export const siteConfig = {
       href: "/admin/medicines",
     },
     {
-      label: "Users",
-      href: "/admin/users",
+      label: "Delivery",
+      href: "/admin/delivery_boys",
     },
   ],
   links: {
