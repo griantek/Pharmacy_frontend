@@ -412,11 +412,13 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
         <ModalContent>
           <ModalHeader>Prescription</ModalHeader>
           <ModalBody>
-            <img 
-              src={`${API_URLS.BACKEND_URL}/${order.prescription_photo}`} 
-              alt="Prescription"
-              className="w-full rounded-lg"
-            />
+          <img 
+            src={order.prescription_photo ? 
+              `${API_URLS.BACKEND_URL}/uploads/${order.prescription_photo.replace('uploads/', '')}` : 
+              ''}
+            alt="Prescription"
+            className="w-full rounded-lg"
+          />
           </ModalBody>
           <ModalFooter>
             <Button color="primary" onPress={() => setIsPrescriptionModalOpen(false)}>
