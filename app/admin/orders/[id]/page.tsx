@@ -1,669 +1,320 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { use } from 'react';
 import axios from 'axios';
-import moment from 'moment';
-import { API_URLS } from "@/utils/constants";
 import {
   Card,
   CardBody,
   Button,
   Chip,
-  Divider,
-  Select,
-  SelectItem,
   Input,
+  Textarea,
   Modal,
   ModalContent,
   ModalHeader,
   ModalBody,
   ModalFooter,
+  Select,
+  SelectItem,
 } from "@nextui-org/react";
+import { API_URLS } from "@/utils/constants";
+import { Package, User, MapPin, Phone, MessageCircle, Pill } from "lucide-react";
 
-interface Booking {
+interface OrderDetails {
   id: number;
-  guest_name: string;
-  guest_phone: string;
-  room_type: string;
-  room_number: string | null;
-  check_in_date: string;
-  check_in_time: string;
-  check_out_date: string;
-  check_out_time: string;
-  guest_count: number;
+  user_name: string;
+  user_address: string;
+  phone_number: string;
+  medicine_name: string;
+  medicine_price: number;
+  quantity: number;
   total_price: number;
-  status: string;
-  paid_status: string;
-  verification_status:string;
-  notes?: string;
-  checkout_reminder_sent: boolean;
-  checkin_status: string;
+  status: 'pending' | 'verified' | 'dispatched' | 'delivered';
+  payment_status: 'pending' | 'paid';
+  prescription_verified: boolean;
+  prescription_photo?: string;
+  created_at: string;
 }
 
-export default function BookingDetails({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
+const DELIVERY_BOY_NUMBER = '917356066056'; // Replace with actual number
+
+export default function OrderDetailsPage({ params }: { params: { id: string } }) {
+  const orderId = params.id;
   const router = useRouter();
-  const [booking, setBooking] = useState<Booking | null>(null);
+  const [order, setOrder] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [roomNumber, setRoomNumber] = useState('');
-  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-  const [roomTypes, setRoomTypes] = useState<Array<{type: string, price: number}>>([]);
-  const [updatedBooking, setUpdatedBooking] = useState<Partial<Booking>>({
-    room_type: '',
-    check_in_date: '',
-    check_in_time: '',
-    check_out_date: '', 
-    check_out_time: '',
-    guest_count: 1,
-    notes: ''
-  });
-  const [availability, setAvailability] = useState<{
-    available: boolean;
-    remainingRooms: number;
-    roomPricePerDay: number;
-    estimatedTotalPrice: number;
-    numberOfDays: number;
-  } | null>(null);
-  const validateDates = (checkIn: string, checkOut: string) => {
-    const currentDate = moment().format('YYYY-MM-DD');
-    const checkInDate = moment(checkIn);
-    const checkOutDate = moment(checkOut);
-    
-    return checkInDate.isSameOrAfter(currentDate) && 
-           checkOutDate.isAfter(checkInDate);
-  };
-  const checkAvailability = async (updateData: Partial<Booking>) => {
-    if (!updateData.room_type && !updateData.check_in_date && !updateData.check_out_date) return;
-  
-    try {
-      const response = await axios.post(`${API_URLS.BACKEND_URL}/api/rooms/availability`, {
-        roomType: updateData.room_type || booking?.room_type,
-        checkInDate: updateData.check_in_date || booking?.check_in_date,
-        checkInTime: updateData.check_in_time || booking?.check_in_time,
-        checkOutDate: updateData.check_out_date || booking?.check_out_date,
-        checkOutTime: updateData.check_out_time || booking?.check_out_time
-      });
-      setAvailability(response.data);
-    } catch (error) {
-      console.error("Error checking availability:", error);
-    }
-  };
-
-  const isCheckInDay = booking ? 
-    moment(booking.check_in_date).isSame(moment(), 'day') : false;
-
-  const isApproachingCheckIn = booking ? 
-    moment(booking.check_in_date).diff(moment(), 'days') <= 1 : false;
-  
-  const isCheckoutDay = booking ? 
-    moment(booking.check_out_date).isSame(moment(), 'day') : false;  
-
-    useEffect(() => {
-      const checkRoomAvailability = async () => {
-        if (!updatedBooking.room_type && !updatedBooking.check_in_date && !updatedBooking.check_out_date) {
-          return;
-        }
-    
-        if (updatedBooking.check_in_date && updatedBooking.check_out_date) {
-          if (!validateDates(updatedBooking.check_in_date, updatedBooking.check_out_date)) {
-            return;
-          }
-        }
-    
-        try {
-          const response = await axios.post(`${API_URLS.BACKEND_URL}/api/rooms/availability`, {
-            roomType: updatedBooking.room_type || booking?.room_type || '',
-            checkInDate: updatedBooking.check_in_date || booking?.check_in_date || '',
-            checkInTime: updatedBooking.check_in_time || booking?.check_in_time || '',
-            checkOutDate: updatedBooking.check_out_date || booking?.check_out_date || '',
-            checkOutTime: updatedBooking.check_out_time || booking?.check_out_time || ''
-          });
-          setAvailability(response.data);
-        } catch (error) {
-          console.error("Error checking availability:", error);
-          setAvailability(null);
-        }
-      };
-    
-      checkRoomAvailability();
-    }, [
-      updatedBooking.room_type, 
-      updatedBooking.check_in_date, 
-      updatedBooking.check_out_date,
-      booking?.room_type,
-      booking?.check_in_date,
-      booking?.check_out_date
-    ]); 
-    useEffect(() => {
-      if (booking) {
-        setUpdatedBooking({
-          room_type: booking.room_type || '',
-          check_in_date: booking.check_in_date || '',
-          check_in_time: booking.check_in_time || '',
-          check_out_date: booking.check_out_date || '',
-          check_out_time: booking.check_out_time || '',
-          guest_count: booking.guest_count || 1,
-          notes: booking.notes || ''
-        });
-      }
-    }, [booking]);  
+  const [customerMessage, setCustomerMessage] = useState('');
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchBooking();
-  }, [resolvedParams.id]);
+    fetchOrderDetails();
+  }, [orderId]); 
 
-  const fetchBooking = async () => {
+  const fetchOrderDetails = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      if (!token) {
-        router.push('/admin/login');
-        return;
-      }
-
       const response = await axios.get(
-        `${API_URLS.BACKEND_URL}/api/bookings/${resolvedParams.id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        `${API_URLS.BACKEND_URL}/order/${orderId}`, // Using orderId instead of params.id
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      
-      if (response.data && response.data.id) {
-        setBooking(response.data);
-        setRoomNumber(response.data.room_number || '');
-      } else {
-        setError('Invalid booking data received');
-      }
+      setOrder(response.data);
     } catch (err) {
-      setError('Failed to load booking details');
+      setError('Failed to load order details');
     } finally {
       setLoading(false);
     }
   };
-
-  const handleStatusUpdate = async (updateData: Partial<Booking>) => {
+  const handleVerifyPrescription = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.patch(
-        `${API_URLS.BACKEND_URL}/api/admin/bookings/${resolvedParams.id}/update`,
-        updateData,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+      await axios.put(
+        `${API_URLS.BACKEND_URL}/order/${orderId}/verify-prescription`,
+        { verified: true },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      await fetchBooking();
+      fetchOrderDetails();
     } catch (err) {
-      setError('Failed to update booking');
+      setError('Failed to verify prescription');
     }
   };
 
-  const handleSendReminder = async () => {
+  const handleStatusUpdate = async (newStatus: string) => {
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.post(
-        `${API_URLS.BACKEND_URL}/api/admin/bookings/${resolvedParams.id}/notify`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+      await axios.put(
+        `${API_URLS.BACKEND_URL}/order/${orderId}/status`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
+      fetchOrderDetails();
     } catch (err) {
-      setError('Failed to send reminder');
+      setError('Failed to update status');
+    }
+  };
+  const handlePaymentStatus = async (status: 'pending' | 'paid') => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.put(
+        `${API_URLS.BACKEND_URL}/order/${orderId}/payment-status`,
+        { status },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchOrderDetails();
+    } catch (err) {
+      setError('Failed to update payment status');
     }
   };
 
-  const handleSendCheckoutReminder = async () => {
-    try {
-      const token = localStorage.getItem('adminToken');
-      await axios.post(
-        `${API_URLS.BACKEND_URL}/api/admin/bookings/${resolvedParams.id}/checkout-notify`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-      await fetchBooking();
-    } catch (err) {
-      setError('Failed to send checkout reminder');
-    }
+  const sendWhatsAppMessage = (phone: string, message: string) => {
+    window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`);
   };
 
-  useEffect(() => {
-    const fetchRoomTypes = async () => {
-      try {
-        const response = await axios.get(`${API_URLS.BACKEND_URL}/api/room-types`);
-        setRoomTypes(response.data);
-      } catch (error) {
-        console.error('Failed to fetch room types:', error);
-      }
-    };
-  
-    fetchRoomTypes();
-  }, []);
-  
-
-  // Add new handlers
-    const handleCancelBooking = async () => {
-        try {
-        const token = localStorage.getItem('adminToken');
-        await axios.delete(
-            `${API_URLS.BACKEND_URL}/api/admin/bookings/${resolvedParams.id}`,
-            {
-            headers: { Authorization: `Bearer ${token}` }
-            }
-        );
-        router.push('/admin/bookings');
-        } catch (err) {
-        setError('Failed to cancel booking');
-        }
-    };
-
-    const handleUpdateBooking = async () => {
-      try {
-        if (updatedBooking.check_in_date && updatedBooking.check_out_date) {
-          if (!validateDates(updatedBooking.check_in_date, updatedBooking.check_out_date)) {
-            setError('Invalid date range');
-            return;
-          }
-        }
+  const sendToDelivery = () => {
+    const message = `New Order #${order?.id}\n\n` +
+      `Customer: ${order?.user_name}\n` +
+      `Address: ${order?.user_address}\n` +
+      `Phone: ${order?.phone_number}\n` +
+      `Medicine: ${order?.medicine_name}\n` +
+      `Quantity: ${order?.quantity}\n` +
+      `Total: $${order?.total_price}`;
     
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-          router.push('/admin/login');
-          return;
-        }
-    
-        const response = await axios.patch(
-          `${API_URLS.BACKEND_URL}/api/admin/bookings/${resolvedParams.id}/update`,
-          updatedBooking,
-          {
-            headers: { 
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-    
-        if (response.data.message === 'Booking updated successfully') {
-          await fetchBooking(); // Refresh booking data
-          // Only close modal if no errors
-          setIsUpdateModalOpen(false);
-        }
-      } catch (err: any) {
-        setError(err.response?.data?.error || 'Failed to update booking');
-        // Don't close modal on error
-      }
-    };
-
-    // Update the Select component to prevent auto-closing
-    <Select
-    label="Room Type"
-    selectedKeys={new Set([updatedBooking.room_type || ''])}
-    onSelectionChange={(keys) => {
-      const value = Array.from(keys)[0] as string;
-      setUpdatedBooking(prev => ({
-        ...prev,
-        room_type: value
-      }));
-    }}
-    disallowEmptySelection
-    className="w-full"
-  >
-    {roomTypes.map((room) => (
-      <SelectItem 
-        key={room.type} 
-        value={room.type}
-        textValue={room.type}
-      >
-        {room.type} (${room.price}/night)
-      </SelectItem>
-    ))}
-  </Select>
+    sendWhatsAppMessage(DELIVERY_BOY_NUMBER, message);
+  };
 
   if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (!booking) return <div>Booking not found</div>;
+  if (!order) return <div>Order not found</div>;
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Booking Details #{booking.id}</h1>
-        <Button
-          color="primary"
-          variant="light"
-          onPress={() => router.push('/admin/bookings')}
-        >
-          Back to Bookings
-        </Button>
-      </div>
-
-      <Card className="mb-6">
-        <CardBody>
-          <div className="grid grid-cols-2 gap-4">
+    <div className="max-w-4xl mx-auto p-6">
+      <Card className="bg-content1">
+        <CardBody className="gap-6">
+          {/* Header */}
+          <div className="flex items-center justify-center p-5 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl">
+            <Package className="w-12 h-12 text-primary mr-4" />
             <div>
-              <h3 className="font-semibold">Guest Information</h3>
-              <p>Name: {booking.guest_name}</p>
-              <p>Phone: {booking.guest_phone}</p>
+              <h1 className="text-3xl font-bold text-primary">Order #{order.id}</h1>
+              <p className="text-default-500">Order Details</p>
             </div>
-            <div>
-              <h3 className="font-semibold">Booking Status</h3>
+          </div>
+
+          {/* Status Badge */}
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-between items-center">
               <Chip
-                color={booking.status === 'confirmed' ? 'success' : 'danger'}
-                className="mt-2"
+                color={
+                  order.status === 'delivered' ? 'success' :
+                  order.status === 'dispatched' ? 'primary' :
+                  order.status === 'verified' ? 'secondary' : 
+                  'warning'
+                }
+                size="lg"
               >
-                {booking.status.toUpperCase()}
+                {order.status.toUpperCase()}
               </Chip>
+              <Select
+                label="Update Status"
+                className="max-w-xs"
+                onChange={(e) => handleStatusUpdate(e.target.value)}
+              >
+                <SelectItem key="pending" value="pending">Pending</SelectItem>
+                <SelectItem key="verified" value="verified">Verified</SelectItem>
+                <SelectItem key="dispatched" value="dispatched">Dispatched</SelectItem>
+                <SelectItem key="delivered" value="delivered">Delivered</SelectItem>
+              </Select>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <Chip
+                color={order.payment_status === 'paid' ? 'success' : 'warning'}
+                size="lg"
+              >
+               {order.payment_status.toUpperCase()}
+              </Chip>
+              <Button
+                color={order.payment_status === 'paid' ? 'success' : 'primary'}
+                variant="flat"
+                onPress={() => handlePaymentStatus(order.payment_status === 'paid' ? 'pending' : 'paid')}
+              >
+                Mark as {order.payment_status === 'paid' ? 'Unpaid' : 'Paid'}
+              </Button>
+            </div>
+          </div> 
+
+          {/* Customer Details */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <User className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-semibold">Customer Details</h2>
+            </div>
+            <div className="pl-7 space-y-2">
+              <p className="text-lg font-medium">{order.user_name}</p>
+              <div className="flex items-center gap-2 text-default-500">
+                <MapPin className="w-4 h-4" />
+                <p>{order.user_address}</p>
+              </div>
+              <div className="flex items-center gap-2 text-default-500">
+                <Phone className="w-4 h-4" />
+                <p>{order.phone_number}</p>
+              </div>
             </div>
           </div>
 
-          <Divider className="my-4" />
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <h3 className="font-semibold">Room Details</h3>
-              <p>Type: {booking.room_type}</p>
-              <p>Guests: {booking.guest_count}</p>
-              <p>Price: ${booking.total_price.toFixed(2)}</p>
-              
-              <div className="mt-4">
-                <h3 className="font-semibold mb-2">Payment Status</h3>
-                <Select
-                    selectedKeys={[booking.paid_status]} // Change value to selectedKeys
-                    onSelectionChange={(keys) => {
-                        const value = Array.from(keys)[0] as string;
-                        handleStatusUpdate({ paid_status: value });
-                    }}
-                    >
-                    <SelectItem key="unpaid">Unpaid</SelectItem>
-                    <SelectItem key="partially_paid">Partially Paid</SelectItem>
-                    <SelectItem key="paid">Paid</SelectItem>
-                </Select>
+          {/* Medicine Details */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Pill className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-semibold">Medicine Details</h2>
+            </div>
+            <div className="pl-7 space-y-2">
+              <p className="text-lg font-medium">{order.medicine_name}</p>
+              <div className="flex justify-between text-default-500">
+                <p>Quantity: {order.quantity}</p>
+                <p>Total: {order.total_price.toFixed(2)}</p>
               </div>
             </div>
-            
-            <div>
-              <h3 className="font-semibold">Check-in/out</h3>
-              <p>Check-in: {booking.check_in_date} at {booking.check_in_time}</p>
-              <p>Check-out: {booking.check_out_date} at {booking.check_out_time}</p>
+          </div>
 
-                <div className="mt-4">
-                <h3 className="font-semibold mb-2">Verification Status</h3>
-                <Select
-                  selectedKeys={[booking.verification_status]}
-                  onSelectionChange={(keys) => {
-                    const value = Array.from(keys)[0] as string;
-                    handleStatusUpdate({ verification_status: value as 'pending' | 'verified' | 'not_verified' });
-                  }}
+          {/* Prescription */}
+          {order.prescription_photo && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Button 
+                  color="primary" 
+                  variant="flat"
+                  onPress={() => setIsPrescriptionModalOpen(true)}
+                >
+                  View Prescription
+                </Button>
+                {!order.prescription_verified && (
+                  <Button
+                    color="success"
+                    onPress={handleVerifyPrescription}
                   >
-                  <SelectItem key="pending">Pending</SelectItem>
-                  <SelectItem key="verified">Verified</SelectItem>
-                  <SelectItem key="not_verified">Not Verified</SelectItem>
-                </Select>
-                </div>
-            </div>
-          </div>
-          
-          {booking.verification_status === 'verified' && (
-            <div className="mt-4">
-              <h3 className="font-semibold mb-2">Room Assignment</h3>
-              <div className="flex gap-2">
-                <Input
-                  value={roomNumber}
-                  onChange={(e) => setRoomNumber(e.target.value)}
-                  placeholder="Enter room number"
-                />
-                <Button
-                  color="primary"
-                  onPress={() => handleStatusUpdate({ room_number: roomNumber })}
-                >
-                  Assign Room
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          {booking.verification_status === 'verified' && (
-            <div className="mt-4">
-              <h3 className="font-semibold mb-2">Check-in/out Management</h3>
-              <div className="flex gap-2">
-                <Button
-                  color="success"
-                  isDisabled={booking.checkin_status === 'checked_in'}
-                  onPress={() => handleStatusUpdate({ checkin_status: 'checked_in' })}
-                >
-                  Check In
-                </Button>
-                <Button
-                  color="warning"
-                  isDisabled={booking.checkin_status !== 'checked_in' || booking.paid_status !== 'paid'}
-                  onPress={() => handleStatusUpdate({ 
-                    checkin_status: 'checked_out',
-                    status: 'completed'
-                  })}
-                >
-                  Check Out
-                </Button>
-              </div>
-              <div className="mt-2">
-                <Chip
-                  color={
-                    booking.checkin_status === 'checked_in' 
-                      ? 'success' 
-                      : booking.checkin_status === 'checked_out' 
-                        ? 'warning' 
-                        : 'default'
-                  }
-                >
-                  {booking.checkin_status ? booking.checkin_status.replace('_', ' ').toUpperCase() : 'NOT CHECKED IN'}
-                </Chip>
-              </div>
-            </div>
-          )}
-
-          {(isApproachingCheckIn || (isCheckoutDay && !booking.checkout_reminder_sent)) && (
-            <div className="mt-4 flex gap-2">
-              {isApproachingCheckIn && (
-                <Button
-                  color="warning"
-                  onPress={handleSendReminder}
-                >
-                  Send Check-in Reminder
-                </Button>
-              )}
-              {isCheckoutDay && !booking.checkout_reminder_sent && (
-                <Button
-                  color="warning"
-                  onPress={handleSendCheckoutReminder}
-                >
-                  Send Checkout Reminder
-                </Button>
-              )}
-            </div>
-          )}
-
-          {booking.notes && (
-            <>
-              <Divider className="my-4" />
-              <div>
-                <h3 className="font-semibold">Notes</h3>
-                <p>{booking.notes}</p>
-              </div>
-            </>
-          )}
-
-        <Divider className="my-4" />
-        <div className="flex justify-end gap-2">
-        {booking.status === 'confirmed' && (
-            <>
-            <Button
-                color="primary"
-                variant="flat"
-                onPress={() => setIsUpdateModalOpen(true)}
-            >
-                Update Booking
-            </Button>
-            <Button
-                color="danger"
-                variant="flat"
-                onPress={() => setIsCancelModalOpen(true)}
-            >
-                Cancel Booking
-            </Button>
-            </>
-        )}
-        </div>
-
-        </CardBody>
-      </Card>
-        <Modal 
-          isOpen={isUpdateModalOpen} 
-          onClose={() => setIsUpdateModalOpen(false)}
-        >
-          <ModalContent>
-            <ModalHeader>Update Booking</ModalHeader>
-            <ModalBody>
-              <div className="space-y-4">
-                <Select
-                  label="Room Type"
-                  selectedKeys={[updatedBooking.room_type || booking.room_type]}
-                  onChange={(e) => setUpdatedBooking({
-                    ...updatedBooking,
-                    room_type: e.target.value
-                  })}
-                >
-                  <SelectItem key="Single Room" value="Single Room">Single Room</SelectItem>
-                  <SelectItem key="Double Room" value="Double Room">Double Room</SelectItem>
-                  <SelectItem key="Suite" value="Suite">Suite</SelectItem>
-                </Select>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    type="date"
-                    label="Check-in Date"
-                    value={updatedBooking.check_in_date || booking.check_in_date}
-                    onChange={(e) => setUpdatedBooking({
-                      ...updatedBooking,
-                      check_in_date: e.target.value
-                    })}
-                  />
-                  <Input
-                    type="time"
-                    label="Check-in Time"
-                    value={updatedBooking.check_in_time || booking.check_in_time}
-                    onChange={(e) => setUpdatedBooking({
-                      ...updatedBooking,
-                      check_in_time: e.target.value
-                    })}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    type="date"
-                    label="Check-out Date"
-                    value={updatedBooking.check_out_date || booking.check_out_date}
-                    onChange={(e) => setUpdatedBooking({
-                      ...updatedBooking,
-                      check_out_date: e.target.value
-                    })}
-                  />
-                  <Input
-                    type="time"
-                    label="Check-out Time"
-                    value={updatedBooking.check_out_time || booking.check_out_time}
-                    onChange={(e) => setUpdatedBooking({
-                      ...updatedBooking,
-                      check_out_time: e.target.value
-                    })}
-                  />
-                </div>
-
-                <Input
-                  type="number"
-                  label="Number of Guests"
-                  min={1}
-                  max={4}
-                  value={(updatedBooking.guest_count || booking.guest_count).toString()}
-                  onChange={(e) => setUpdatedBooking({
-                    ...updatedBooking,
-                    guest_count: parseInt(e.target.value)
-                  })}
-                />
-
-                <Input
-                  label="Notes"
-                  value={updatedBooking.notes || booking.notes}
-                  onChange={(e) => setUpdatedBooking({
-                    ...updatedBooking,
-                    notes: e.target.value
-                  })}
-                  placeholder="Any special requests?"
-                />
-
-                {/* Add availability check info here */}
-                {availability && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Chip 
-                        color={availability.available ? "success" : "danger"}
-                        size="sm"
-                      >
-                        {availability.available 
-                          ? `${availability.remainingRooms} Rooms Available`
-                          : "Fully Booked"
-                        }
-                      </Chip>
-                      {availability.available && (
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600">
-                            ${availability.roomPricePerDay}/night • {availability.numberOfDays} nights
-                          </p>
-                          <p className="text-base font-semibold text-success">
-                            Total: ${availability.estimatedTotalPrice}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                    Verify Prescription
+                  </Button>
+                )}
+                {order.prescription_verified && (
+                  <Chip color="success">Prescription Verified</Chip>
                 )}
               </div>
-            </ModalBody>
-            <ModalFooter>
-              <Button color="default" onPress={() => setIsUpdateModalOpen(false)}>
-                Close
-              </Button>
-              <Button 
-                color="primary" 
-                onPress={handleUpdateBooking}
-                isDisabled={!availability?.available}
-              >
-                Save Changes
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-        <Modal 
-        isOpen={isCancelModalOpen} 
-        onClose={() => setIsCancelModalOpen(false)}
-        >
+            </div>
+          )}
+
+          {/* Communication Buttons */}
+          <div className="flex gap-4">
+            <Button
+              color="success"
+              startContent={<MessageCircle />}
+              onPress={() => setIsMessageModalOpen(true)}
+              className="flex-1"
+            >
+              Message Customer
+            </Button>
+            <Button
+              color="primary"
+              startContent={<MessageCircle />}
+              onPress={sendToDelivery}
+              className="flex-1"
+            >
+              Send to Delivery
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Message Modal */}
+      <Modal isOpen={isMessageModalOpen} onClose={() => setIsMessageModalOpen(false)}>
         <ModalContent>
-            <ModalHeader>Confirm Cancellation</ModalHeader>
-            <ModalBody>
-            Are you sure you want to cancel this booking? This action cannot be undone.
-            </ModalBody>
-            <ModalFooter>
-            <Button color="default" onPress={() => setIsCancelModalOpen(false)}>
-                Close
+          <ModalHeader>Send Message to Customer</ModalHeader>
+          <ModalBody>
+            <Textarea
+              value={customerMessage}
+              onChange={(e) => setCustomerMessage(e.target.value)}
+              placeholder="Type your message here..."
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button color="danger" variant="flat" onPress={() => setIsMessageModalOpen(false)}>
+              Cancel
             </Button>
-            <Button color="danger" onPress={handleCancelBooking}>
-                Cancel Booking
+            <Button 
+              color="primary" 
+              onPress={() => {
+                sendWhatsAppMessage(order.phone_number, customerMessage);
+                setIsMessageModalOpen(false);
+              }}
+            >
+              Send Message
             </Button>
-            </ModalFooter>
+          </ModalFooter>
         </ModalContent>
-        </Modal>
+      </Modal>
+
+      {/* Prescription Modal */}
+      <Modal 
+        isOpen={isPrescriptionModalOpen} 
+        onClose={() => setIsPrescriptionModalOpen(false)}
+        size="2xl"
+      >
+        <ModalContent>
+          <ModalHeader>Prescription</ModalHeader>
+          <ModalBody>
+            <img 
+              src={`${API_URLS.BACKEND_URL}/${order.prescription_photo}`} 
+              alt="Prescription"
+              className="w-full rounded-lg"
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button color="primary" onPress={() => setIsPrescriptionModalOpen(false)}>
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }
