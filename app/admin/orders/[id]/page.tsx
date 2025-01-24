@@ -37,6 +37,13 @@ interface OrderDetails {
   created_at: string;
 }
 
+interface DeliveryBoy {
+  id: number;
+  name: string;
+  phone: string;
+  current_order_id: number | null;
+}
+
 const DELIVERY_BOY_NUMBER = '917356066056'; // Replace with actual number
 
 export default function OrderDetailsPage({ params }: { params: { id: string } }) {
@@ -48,10 +55,61 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
   const [customerMessage, setCustomerMessage] = useState('');
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
+  const [deliveryBoys, setDeliveryBoys] = useState<DeliveryBoy[]>([]);
+  const [selectedDeliveryBoy, setSelectedDeliveryBoy] = useState<string>('');
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
   }, [orderId]); 
+
+  // Add delivery boys fetch
+  const fetchDeliveryBoys = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await axios.get(
+        `${API_URLS.BACKEND_URL}/admin/delivery-boys`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setDeliveryBoys(response.data);
+    } catch (err) {
+      setError('Failed to fetch delivery boys');
+    }
+  };
+
+  useEffect(() => {
+    fetchDeliveryBoys();
+  }, []);
+
+  const handleAssignDelivery = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.put(
+        `${API_URLS.BACKEND_URL}/admin/delivery-boys/${selectedDeliveryBoy}/assign-order`,
+        { orderId: order?.id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Send WhatsApp notification to delivery boy
+      const selectedBoy = deliveryBoys.find(boy => boy.id === Number(selectedDeliveryBoy));
+      if (selectedBoy) {
+        const message = `New Order #${order?.id}\n\n` +
+          `Customer: ${order?.user_name}\n` +
+          `Address: ${order?.user_address}\n` +
+          `Phone: ${order?.phone_number}\n` +
+          `Medicine: ${order?.medicine_name}\n` +
+          `Quantity: ${order?.quantity}\n` +
+          `Total: ${order?.total_price}`;
+
+        await sendWhatsAppMessage(selectedBoy.phone, message);
+      }
+
+      setIsAssignModalOpen(false);
+      fetchOrderDetails();
+    } catch (err) {
+      setError('Failed to assign delivery');
+    }
+  };
 
   const fetchOrderDetails = async () => {
     try {
@@ -265,14 +323,48 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
             <Button
               color="primary"
               startContent={<MessageCircle />}
-              onPress={sendToDelivery}
+              onPress={() => setIsAssignModalOpen(true)}
               className="flex-1"
             >
-              Send to Delivery
+              Assign Delivery
             </Button>
           </div>
         </CardBody>
       </Card>
+      {/* Add Assignment Modal */}
+    <Modal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} isDismissable={false}>
+      <ModalContent>
+        <ModalHeader>Assign Delivery Boy</ModalHeader>
+        <ModalBody>
+          <Select
+            label="Select Delivery Boy"
+            placeholder="Choose a delivery boy"
+            value={selectedDeliveryBoy}
+            onChange={(e) => setSelectedDeliveryBoy(e.target.value)}
+          >
+            {deliveryBoys
+              .filter(boy => !boy.current_order_id)
+              .map(boy => (
+                <SelectItem key={boy.id} value={boy.id.toString()}>
+                  {boy.name} ({boy.phone})
+                </SelectItem>
+              ))}
+          </Select>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="danger" variant="flat" onPress={() => setIsAssignModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            color="primary" 
+            onPress={handleAssignDelivery}
+            isDisabled={!selectedDeliveryBoy}
+          >
+            Assign Order
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
 
       {/* Message Modal */}
       <Modal isOpen={isMessageModalOpen} onClose={() => setIsMessageModalOpen(false)}>
@@ -324,6 +416,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
           </ModalFooter>
         </ModalContent>
       </Modal>
+
     </div>
   );
 }
