@@ -108,11 +108,20 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
     }
   };
 
-  const sendWhatsAppMessage = (phone: string, message: string) => {
-    window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`);
+  const sendWhatsAppMessage = async (phone: string, message: string) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.post(
+        `${API_URLS.BACKEND_URL}/send-whatsapp-message`,
+        { phone, message },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      setError('Failed to send WhatsApp message');
+    }
   };
 
-  const sendToDelivery = () => {
+  const sendToDelivery = async () => {
     const message = `New Order #${order?.id}\n\n` +
       `Customer: ${order?.user_name}\n` +
       `Address: ${order?.user_address}\n` +
@@ -121,7 +130,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
       `Quantity: ${order?.quantity}\n` +
       `Total: $${order?.total_price}`;
     
-    sendWhatsAppMessage(DELIVERY_BOY_NUMBER, message);
+    await sendWhatsAppMessage(DELIVERY_BOY_NUMBER, message);
   };
 
   if (loading) return <div>Loading...</div>;
