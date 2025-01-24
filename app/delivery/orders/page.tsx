@@ -78,6 +78,12 @@ export default function DeliveryOrdersPage() {
 
   const handleStatusUpdate = async (orderId: number, status: string) => {
     try {
+      const order = orders.find(o => o.id === orderId);
+      if (status === 'delivered' && order?.payment_status !== 'paid') {
+        setError('Cannot mark as delivered until payment is received');
+        return;
+      }
+  
       const token = localStorage.getItem('deliveryToken');
       await axios.put(
         `${API_URLS.BACKEND_URL}/delivery/orders/${orderId}/status`,
@@ -152,19 +158,27 @@ export default function DeliveryOrdersPage() {
                   </TableCell>
                   <TableCell>
                     {order.status !== 'delivered' && (
-                      <Select
+                        <Select
                         size="sm"
                         onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
-                      >
-                        <SelectItem key="dispatched" value="dispatched">
-                          Mark Dispatched
+                        isDisabled={false}
+                        >
+                        <SelectItem 
+                            key="dispatched" 
+                            value="dispatched"
+                        >
+                            Mark Dispatched
                         </SelectItem>
-                        <SelectItem key="delivered" value="delivered">
-                          Mark Delivered
+                        <SelectItem 
+                            key="delivered" 
+                            value="delivered"
+                            className={order.payment_status !== 'paid' ? 'text-gray-400' : ''}
+                        >
+                            Mark Delivered {order.payment_status !== 'paid' ? '(Requires Payment)' : ''}
                         </SelectItem>
-                      </Select>
+                        </Select>
                     )}
-                  </TableCell>
+                    </TableCell>
                 </TableRow>
               ))}
             </TableBody>
