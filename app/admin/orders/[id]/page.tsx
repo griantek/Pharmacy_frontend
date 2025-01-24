@@ -84,12 +84,21 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
   const handleAssignDelivery = async () => {
     try {
       const token = localStorage.getItem('adminToken');
+      
+      // First assign the delivery boy
       await axios.put(
         `${API_URLS.BACKEND_URL}/admin/delivery-boys/${selectedDeliveryBoy}/assign-order`,
         { orderId: order?.id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
+  
+      // Update order status to dispatched
+      await axios.put(
+        `${API_URLS.BACKEND_URL}/order/${orderId}/status`,
+        { status: 'dispatched' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+  
       // Send WhatsApp notification to delivery boy
       const selectedBoy = deliveryBoys.find(boy => boy.id === Number(selectedDeliveryBoy));
       if (selectedBoy) {
@@ -100,10 +109,10 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
           `Medicine: ${order?.medicine_name}\n` +
           `Quantity: ${order?.quantity}\n` +
           `Total: ${order?.total_price}`;
-
+  
         await sendWhatsAppMessage(selectedBoy.phone, message);
       }
-
+  
       setIsAssignModalOpen(false);
       fetchOrderDetails();
     } catch (err) {

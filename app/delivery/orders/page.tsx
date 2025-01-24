@@ -6,183 +6,190 @@ import axios from 'axios';
 import {
   Card,
   CardBody,
+  CardHeader,
   Chip,
   Button,
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-  Select,
-  SelectItem
+  Divider
 } from "@nextui-org/react";
 import { API_URLS } from "@/utils/constants";
+import { Package, User, MapPin, Phone, DollarSign, Pill } from "lucide-react";
 
 interface DeliveryOrder {
-    id: number;
-    user_name: string;
-    user_address: string;
-    phone_number: string;
-    medicine_name: string;
-    quantity: number;
-    total_price: number;
-    status: string;
-    payment_status: 'pending' | 'paid';
-    created_at: string;
-  }
+  id: number;
+  user_name: string;
+  user_address: string;
+  phone_number: string;
+  medicine_name: string;
+  quantity: number;
+  total_price: number;
+  status: string;
+  payment_status: 'pending' | 'paid';
+  created_at: string;
+}
 
 export default function DeliveryOrdersPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<DeliveryOrder[]>([]);
+  const [currentOrder, setCurrentOrder] = useState<DeliveryOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchOrders();
+    fetchCurrentOrder();
   }, []);
 
-  const fetchOrders = async () => {
+  const fetchCurrentOrder = async () => {
     try {
       const token = localStorage.getItem('deliveryToken');
       if (!token) {
         router.push('/delivery/login');
         return;
       }
-
+  
       const response = await axios.get(
-        `${API_URLS.BACKEND_URL}/delivery/orders`,
+        `${API_URLS.BACKEND_URL}/delivery/current-order`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setOrders(response.data);
+      setCurrentOrder(response.data);
     } catch (err) {
-      setError('Failed to fetch orders');
+      setError('Failed to fetch current order');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePaymentUpdate = async (orderId: number, payment_status: string) => {
+  const handlePaymentUpdate = async (payment_status: string) => {
+    if (!currentOrder) return;
     try {
       const token = localStorage.getItem('deliveryToken');
       await axios.put(
-        `${API_URLS.BACKEND_URL}/delivery/orders/${orderId}/payment`,
+        `${API_URLS.BACKEND_URL}/delivery/orders/${currentOrder.id}/payment`,
         { payment_status },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      fetchOrders();
+      fetchCurrentOrder();
     } catch (err) {
       setError('Failed to update payment status');
     }
   };
 
-  const handleStatusUpdate = async (orderId: number, status: string) => {
+  const handleStatusUpdate = async (status: string) => {
+    if (!currentOrder) return;
     try {
-      const order = orders.find(o => o.id === orderId);
-      if (status === 'delivered' && order?.payment_status !== 'paid') {
+      if (status === 'delivered' && currentOrder.payment_status !== 'paid') {
         setError('Cannot mark as delivered until payment is received');
         return;
       }
-  
+
       const token = localStorage.getItem('deliveryToken');
       await axios.put(
-        `${API_URLS.BACKEND_URL}/delivery/orders/${orderId}/status`,
+        `${API_URLS.BACKEND_URL}/delivery/orders/${currentOrder.id}/status`,
         { status },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      fetchOrders();
+      fetchCurrentOrder();
     } catch (err) {
       setError('Failed to update status');
     }
   };
 
   if (loading) return <div>Loading...</div>;
+  if (!currentOrder) return <div className="text-center p-6">No active orders assigned</div>;
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-md mx-auto p-4">
       <Card className="bg-content1">
-        <CardBody>
-          <h1 className="text-2xl font-bold mb-6">Delivery Orders</h1>
+        <CardBody className="gap-6">
+          {/* Order Header */}
+          <div className="flex items-center justify-center p-5 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl">
+            <Package className="w-12 h-12 text-primary mr-4" />
+            <div>
+              <h1 className="text-3xl font-bold text-primary">Order #{currentOrder.id}</h1>
+              <p className="text-default-500">Current Delivery</p>
+            </div>
+          </div>
 
-          <Table aria-label="Delivery orders">
-            <TableHeader>
-              <TableColumn>ORDER ID</TableColumn>
-              <TableColumn>CUSTOMER</TableColumn>
-              <TableColumn>ADDRESS</TableColumn>
-              <TableColumn>MEDICINE</TableColumn>
-              <TableColumn>TOTAL</TableColumn>
-              <TableColumn>STATUS</TableColumn>
-              <TableColumn>PAYMENT</TableColumn>
-              <TableColumn>ACTIONS</TableColumn>
-            </TableHeader>
-            <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell>#{order.id}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p>{order.user_name}</p>
-                      <p className="text-small text-default-500">{order.phone_number}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{order.user_address}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p>{order.medicine_name}</p>
-                      <p className="text-small text-default-500">Qty: {order.quantity}</p>
-                    </div>
-                    </TableCell>
-                  <TableCell>
-                    <p className="font-semibold">${order.total_price.toFixed(2)}</p>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      color={order.status === 'delivered' ? 'success' : 'primary'}
-                      size="sm"
-                    >
-                      {order.status.toUpperCase()}
-                    </Chip>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      color={order.payment_status === 'paid' ? 'success' : 'warning'}
-                      size="sm"
-                      className="cursor-pointer"
-                      onClick={() => handlePaymentUpdate(
-                        order.id, 
-                        order.payment_status === 'paid' ? 'pending' : 'paid'
-                      )}
-                    >
-                      {order.payment_status.toUpperCase()}
-                    </Chip>
-                  </TableCell>
-                  <TableCell>
-                    {order.status !== 'delivered' && (
-                        <Select
-                        size="sm"
-                        onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
-                        isDisabled={false}
-                        >
-                        <SelectItem 
-                            key="dispatched" 
-                            value="dispatched"
-                        >
-                            Mark Dispatched
-                        </SelectItem>
-                        <SelectItem 
-                            key="delivered" 
-                            value="delivered"
-                            className={order.payment_status !== 'paid' ? 'text-gray-400' : ''}
-                        >
-                            Mark Delivered {order.payment_status !== 'paid' ? '(Requires Payment)' : ''}
-                        </SelectItem>
-                        </Select>
-                    )}
-                    </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {/* Status Chips */}
+          <div className="flex justify-between items-center">
+            <Chip
+              color={currentOrder.status === 'delivered' ? 'success' : 'primary'}
+              size="lg"
+            >
+              {currentOrder.status.toUpperCase()}
+            </Chip>
+            <Chip
+              color={currentOrder.payment_status === 'paid' ? 'success' : 'warning'}
+              size="lg"
+              className="cursor-pointer"
+              onClick={() => handlePaymentUpdate(
+                currentOrder.payment_status === 'paid' ? 'pending' : 'paid'
+              )}
+            >
+              {currentOrder.payment_status.toUpperCase()}
+            </Chip>
+          </div>
+
+          {/* Customer Details */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <User className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-semibold">Customer Details</h2>
+            </div>
+            <div className="pl-7 space-y-2">
+              <p className="text-lg font-medium">{currentOrder.user_name}</p>
+              <div className="flex items-center gap-2 text-default-500">
+                <MapPin className="w-4 h-4" />
+                <p>{currentOrder.user_address}</p>
+              </div>
+              <div className="flex items-center gap-2 text-default-500">
+                <Phone className="w-4 h-4" />
+                <p>{currentOrder.phone_number}</p>
+              </div>
+            </div>
+          </div>
+
+          <Divider />
+
+          {/* Order Details */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Pill className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-semibold">Order Details</h2>
+            </div>
+            <div className="pl-7 space-y-3">
+              <p className="text-lg font-medium">{currentOrder.medicine_name}</p>
+              <p className="text-default-500">Quantity: {currentOrder.quantity}</p>
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-success" />
+                <p className="text-xl font-bold text-success">
+                  {currentOrder.total_price.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          {currentOrder.status !== 'delivered' && (
+            <div className="flex gap-3 pt-4">
+              <Button
+                color="primary"
+                className="flex-1"
+                size="lg"
+                onPress={() => handleStatusUpdate('dispatched')}
+                isDisabled={currentOrder.status === 'dispatched'}
+              >
+                Mark Dispatched
+              </Button>
+              <Button
+                color="success"
+                className="flex-1"
+                size="lg"
+                onPress={() => handleStatusUpdate('delivered')}
+                isDisabled={currentOrder.payment_status !== 'paid'}
+              >
+                Mark Delivered
+              </Button>
+            </div>
+          )}
         </CardBody>
       </Card>
     </div>
