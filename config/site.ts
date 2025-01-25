@@ -38,6 +38,16 @@ export const siteConfig = {
       href: "/admin/feedbacks",
     },
   ],
+  deliveryNavItems: [
+    {
+      label: "Current Order",
+      href: "/delivery/orders",
+    },
+    {
+      label: "Profile",
+      href: "/delivery/profile",
+    }
+  ],
   links: {
     github: "https://github.com/nextui-org/nextui",
     twitter: "https://twitter.com/getnextui",

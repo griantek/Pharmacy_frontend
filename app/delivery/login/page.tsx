@@ -34,14 +34,21 @@ export default function DeliveryLogin() {
 
       localStorage.setItem('deliveryToken', response.data.token);
       localStorage.setItem('deliveryUser', JSON.stringify(response.data.user));
+      
+      // Trigger navbar update
+      window.dispatchEvent(new Event('deliveryLoggedIn'));
+      
+      // Navigate and refresh
       router.push('/delivery/orders');
+      router.refresh();
+      
     } catch (err: any) {
       setError(err.response?.data || 'Login failed');
     } finally {
       setIsLoading(false);
     }
   };
-
+  
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/20 to-secondary/20">
       <Card className="w-full max-w-md">

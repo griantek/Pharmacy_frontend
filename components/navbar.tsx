@@ -21,29 +21,43 @@ import { ThemeSwitch } from "@/components/theme-switch";
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDelivery, setIsDelivery] = useState(false);
   const navbarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const checkAdminStatus = () => {
+    const checkUserStatus = () => {
       const adminToken = localStorage.getItem('adminToken');
+      const deliveryToken = localStorage.getItem('deliveryToken');
+      
+      console.log('Checking tokens:', { adminToken, deliveryToken }); // Debug
+      
       setIsAdmin(!!adminToken);
+      setIsDelivery(!!deliveryToken);
     };
-
-    // Check initially
-    checkAdminStatus();
-
-    // Listen for login event
-    window.addEventListener('adminLoggedIn', checkAdminStatus);
-
-    // Cleanup
+  
+    checkUserStatus();
+    window.addEventListener('adminLoggedIn', checkUserStatus);
+    window.addEventListener('deliveryLoggedIn', checkUserStatus);
+  
     return () => {
-      window.removeEventListener('adminLoggedIn', checkAdminStatus);
+      window.removeEventListener('adminLoggedIn', checkUserStatus);
+      window.removeEventListener('deliveryLoggedIn', checkUserStatus);
     };
   }, []);
+  
 
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
-    setIsAdmin(false);
+    if (isAdmin) {
+      localStorage.removeItem('adminToken');
+      setIsAdmin(false);
+      window.dispatchEvent(new Event('adminLoggedIn'));
+    }
+    if (isDelivery) {
+      localStorage.removeItem('deliveryToken');
+      localStorage.removeItem('deliveryUser');
+      setIsDelivery(false);
+      window.dispatchEvent(new Event('deliveryLoggedIn'));
+    }
     window.location.href = '/';
   };
 
@@ -61,13 +75,7 @@ export const Navbar = () => {
   }, []);
 
   return (
-    <NextUINavbar 
-      maxWidth="xl" 
-      position="sticky" 
-      ref={navbarRef}
-      isMenuOpen={isMenuOpen}
-      onMenuOpenChange={setIsMenuOpen}
-    >
+    <NextUINavbar maxWidth="xl" position="sticky" ref={navbarRef} isMenuOpen={isMenuOpen} onMenuOpenChange={setIsMenuOpen}>
       <NavbarContent className="basis-1/5 sm:basis-full" justify="start">
         <NavbarBrand className="gap-3 max-w-fit">
           <NextLink className="flex justify-start items-center gap-1" href="/">
@@ -78,13 +86,13 @@ export const Navbar = () => {
               height={36}
               style={{ filter: "grayscale(100%)" }}
             />
-            <p className="text-inherit">Xcel</p>
+            <p className="text-inherit">MedCare</p>
           </NextLink>
         </NavbarBrand>
       </NavbarContent>
 
       <NavbarContent className="hidden sm:flex gap-4" justify="center">
-        {isAdmin ? (
+        {isAdmin && (
           <>
             {siteConfig.adminNavItems.map((item) => (
               <NavbarItem key={item.href}>
@@ -100,6 +108,27 @@ export const Navbar = () => {
                 </NextLink>
               </NavbarItem>
             ))}
+          </>
+          )}
+          {isDelivery && (
+            <>
+              {siteConfig.deliveryNavItems.map((item) => (
+                <NavbarItem key={item.href}>
+                  <NextLink
+                    className={clsx(
+                      linkStyles({ color: "foreground" }),
+                      "data-[active=true]:text-primary data-[active=true]:font-medium"
+                    )}
+                    color="foreground"
+                    href={item.href}
+                  >
+                    {item.label}
+                  </NextLink>
+                </NavbarItem>
+              ))}
+            </>
+          )}
+          {(isAdmin || isDelivery) && (
             <NavbarItem>
               <Button 
                 color="danger"
@@ -110,33 +139,16 @@ export const Navbar = () => {
                 Logout
               </Button>
             </NavbarItem>
-          </>
-        ) : (
-          siteConfig.navItems.map((item) => (
-            <NavbarItem key={item.href}>
-              <NextLink
-                className={clsx(
-                  linkStyles({ color: "foreground" }),
-                  "data-[active=true]:text-primary data-[active=true]:font-medium"
-                )}
-                color="foreground"
-                href={item.href}
-              >
-                {item.label}
-              </NextLink>
-            </NavbarItem>
-          ))
-        )}
-      </NavbarContent>
-
-      <NavbarContent className="sm:hidden basis-1 pl-4" justify="end">
+          )}
+        </NavbarContent>
+        <NavbarContent className="sm:hidden basis-1 pl-4" justify="end">
         <ThemeSwitch />
         <NavbarMenuToggle />
       </NavbarContent>
 
       <NavbarMenu>
         <div className="mx-4 mt-2 flex flex-col gap-2">
-          {isAdmin ? (
+          {isAdmin && (
             <>
               {siteConfig.adminNavItems.map((item, index) => (
                 <NavbarMenuItem key={`${item}-${index}`}>
@@ -150,21 +162,40 @@ export const Navbar = () => {
                   </Link>
                 </NavbarMenuItem>
               ))}
-              <NavbarMenuItem>
-                <Link
-                  color="danger"
-                  href="#"
-                  size="lg"
-                  onClick={() => {
-                    handleLogout();
-                    setIsMenuOpen(false);
-                  }}
-                >
-                  Logout
-                </Link>
-              </NavbarMenuItem>
             </>
-          ) : (
+          )}
+          {isDelivery && (
+            <>
+              {siteConfig.deliveryNavItems.map((item, index) => (
+                <NavbarMenuItem key={`${item}-${index}`}>
+                  <Link
+                    color="foreground"
+                    href={item.href}
+                    size="lg"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                  </NavbarMenuItem>
+              ))}
+            </>
+          )}
+          {(isAdmin || isDelivery) && (
+            <NavbarMenuItem>
+              <Link
+                color="danger"
+                href="#"
+                size="lg"
+                onClick={() => {
+                  handleLogout();
+                  setIsMenuOpen(false);
+                }}
+              >
+                Logout
+              </Link>
+            </NavbarMenuItem>
+          )}
+          {!isAdmin && !isDelivery && (
             siteConfig.navItems.map((item, index) => (
               <NavbarMenuItem key={`${item}-${index}`}>
                 <Link
@@ -180,6 +211,6 @@ export const Navbar = () => {
           )}
         </div>
       </NavbarMenu>
-    </NextUINavbar>
+      </NextUINavbar>
   );
 };
