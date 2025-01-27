@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardBody, Input, Button, Select, SelectItem, Chip, Divider } from "@nextui-org/react";
 import axios from 'axios';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { API_URLS } from "@/utils/constants";
 
 interface FormData {
@@ -24,6 +24,7 @@ interface Medicine {
 }
 
 export default function OrderPage() {
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -46,6 +47,23 @@ export default function OrderPage() {
   });
 
   useEffect(() => {
+    const validateToken = async (token: string) => {
+      try {
+        const response = await axios.get(`${API_URLS.BACKEND_URL}/validate-token`, {
+          params: { token }
+        });
+        const { name, phone } = response.data;
+        setFormData(prev => ({
+          ...prev,
+          user_name: name || '',
+          phone_number: phone || ''
+        }));
+      } catch (error) {
+        console.error('Token validation failed:', error);
+        router.push('/tokenexp'); // Redirect to home page on invalid token
+      }
+    };
+
     const fetchMedicines = async () => {
       try {
         const response = await axios.get(`${API_URLS.BACKEND_URL}/medicines`);
@@ -55,8 +73,15 @@ export default function OrderPage() {
       }
     };
 
+    const token = searchParams.get('token');
+    if (token) {
+      validateToken(token);
+    } else {
+      router.push('/tokenexp'); // Redirect if no token
+    }
+
     fetchMedicines();
-  }, []);
+  }, [searchParams, router]);
 
   const handleInputChange = (field: keyof FormData, value: string | number | File | null) => {
     setFormData(prev => ({
@@ -145,14 +170,12 @@ export default function OrderPage() {
               onChange={(e) => handleInputChange("user_address", e.target.value)}
               isRequired
             />
-
-            <Input
-              label="Phone Number"
-              placeholder="Enter your phone number"
-              value={formData.phone_number}
-              onChange={(e) => handleInputChange("phone_number", e.target.value)}
-              isRequired
-            />
+            <input 
+              type="hidden" 
+              name="phone_number" 
+              value={formData.phone_number} 
+            /> 
+             
 
             <Select
               label="Medicine"

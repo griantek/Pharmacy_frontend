@@ -50,7 +50,6 @@ interface FormErrors {
 export default function ModifyOrder() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const orderId = searchParams.get('orderId');
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [formData, setFormData] = useState<FormData>({
     user_name: '',
@@ -67,53 +66,73 @@ export default function ModifyOrder() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [orderId, setOrderId] = useState<number | null>(null);
   const [orderStatus, setOrderStatus] = useState<string>('');
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
 
   useEffect(() => {
-    const fetchMedicines = async () => {
+    const validateTokenAndFetchOrder = async (token: string) => {
       try {
-        const response = await axios.get(`${API_URLS.BACKEND_URL}/medicines`);
-        setMedicines(response.data);
-      } catch (error) {
-        console.error('Error fetching medicines:', error);
-      }
-    };
-
-    fetchMedicines();
-  }, []);
-
-  useEffect(() => {
-    const fetchOrder = async () => {
-      try {
-        const response = await axios.get<OrderResponse>(`${API_URLS.BACKEND_URL}/order/${orderId}`);
-        const order = response.data;
-
-        if (order.status !== 'Pending') {
+        // First validate token
+        const tokenResponse = await axios.get(`${API_URLS.BACKEND_URL}/validate-token`, {
+          params: { token }
+        });
+        
+        const { orderId } = tokenResponse.data;
+        if (!orderId) {
+          throw new Error('No order ID found');
+        }
+        setOrderId(orderId);
+  
+        // Fetch order details
+        const [orderResponse, medicinesResponse] = await Promise.all([
+          axios.get(`${API_URLS.BACKEND_URL}/order/${orderId}`),
+          axios.get(`${API_URLS.BACKEND_URL}/medicines`)
+        ]);
+  
+        const orderData = orderResponse.data;
+        
+        // Check order status
+        if (orderData.status !== 'Pending') {
           alert('Only orders with "Pending" status can be modified.');
           router.push('/');
           return;
         }
+        // Set medicines
+      setMedicines(medicinesResponse.data);
 
-        setFormData({
-          user_name: order.user_name,
-          user_address: order.user_address,
-          phone_number: order.phone_number,
-          medicine_id: order.medicine_id,
-          quantity: order.quantity,
-          prescription: null
-        });
+      // Set form data
+      setFormData({
+        user_name: orderData.user_name,
+        user_address: orderData.user_address,
+        phone_number: orderData.phone_number,
+        medicine_id: orderData.medicine_id,
+        quantity: orderData.quantity,
+        prescription: null
+      });
 
-        setOrderStatus(order.status);
-      } catch (error) {
-        console.error('Error fetching order:', error);
-      }
-    };
+      setOrderStatus(orderData.status);
 
-    if (orderId) {
-      fetchOrder();
+      // Set selected medicine
+      const selectedMed = medicinesResponse.data.find(
+        (m: Medicine) => m.id === orderData.medicine_id
+      );
+      setSelectedMedicine(selectedMed || null);
+
+    } catch (error) {
+      console.error('Error:', error);
+      router.push('/tokenexp');
     }
-  }, [orderId, router]);
+  };
+
+  const token = searchParams.get('token');
+  if (token) {
+    validateTokenAndFetchOrder(token);
+  } else {
+    router.push('/tokenexp');
+  }
+}, [searchParams, router]);
+
 
   const handleInputChange = (field: string, value: string) => {
     if (field === 'medicine_id') {
