@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import {
@@ -46,7 +46,13 @@ interface DeliveryBoy {
 
 const DELIVERY_BOY_NUMBER = '917356066056'; // Replace with actual number
 
-export default function OrderDetailsPage({ params }: { params: { id: string } }) {
+export default function OrderDetailsPage({
+  params,
+}: {
+  params: {
+    id: string;
+  };
+}) {
   const orderId = params.id;
   const router = useRouter();
   const [order, setOrder] = useState<OrderDetails | null>(null);
